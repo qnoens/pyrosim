@@ -38,7 +38,7 @@ def add_random_block_grid(sim,
                          mass=50.0)  # statisch blok
 
 # Hyperparameters
-POP_SIZE = 30
+POP_SIZE = 50
 GENERATIONS = 50
 MUTATION_RATE = 0.1
 
@@ -56,6 +56,7 @@ MAX_THIGH_LENGTH = 0.5
 MAX_SHIN_LENGTH = 1.0
 MAX_BODY_LENGTH = 0.4
 MIN_LENGTH = 0.1
+SHIN_RANGE = (MIN_LENGTH, MAX_SHIN_LENGTH)
 
 def random_individual():
     motor_params = [
@@ -187,10 +188,47 @@ def evaluate(individual, seconds = 30.0, dt = 0.05, play_blind = True):
     final_x = pos_data_x[-1]  # laatste timestep, x-component
     return final_x**2 + final_y**2  # fitness is de afstand van de oorsprong
 
+# --- Collect the best individual per shin length ---
+def get_best_bin_performances(evals, num_intervals=4):
+    binned_best_individuals = {}
+    interval_start = SHIN_RANGE[0]
+    interval_size = (SHIN_RANGE[1] - SHIN_RANGE[0]) / num_intervals
 
+    for shin_length, (individual, _) in evals.items():
+        bin_index = int((shin_length - interval_start) // interval_size)
+        if 0 <= bin_index < num_intervals:
+            bin_start = interval_start + bin_index * interval_size
+            fitness = evaluate(individual, play_blind=True)
+            if bin_start not in binned_best_individuals or fitness > binned_best_individuals[bin_start][1]:
+                binned_best_individuals[bin_start] = (individual, fitness)
+
+    # Play best individuals in each bin
+    for bin_start, (individual, fit) in binned_best_individuals.items():
+        print(f"Showing best individual in bin {bin_start:.2f}–{bin_start + interval_size:.2f}: {fit:.2f}")
+        evaluate(individual, play_blind=False)
+
+    return {k: v[1] for k, v in binned_best_individuals.items()}  # return bin: fitness
+
+def plot_histogram_shin_lengths(binned_values, interval_size=0.1):
+    # Sort bins by their starting shin length
+    sorted_bins = sorted(binned_values.items())
+
+    bins = [f"{round(start, 2)}–{round(start + interval_size, 2)}" for start, _ in sorted_bins]
+    values = [fitness for _, fitness in sorted_bins]
+
+    plt.figure(figsize=(8, 5))
+    plt.bar(bins, values, width=0.5, color='skyblue', edgecolor='black')
+    plt.xlabel('Shin Length Interval')
+    plt.ylabel('Evaluated Fitness (play_blind=False)')
+    plt.title('Max Evaluated Fitness per Shin Length Bin')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
 
 TOP_K = 5  # number of top individuals to retain and mutate from
+NUM_INTERVALS = 4  # number of intervals for shin length histogram
 
+# --- Main loop ---
 if __name__ == "__main__":
     population = [random_individual() for _ in range(POP_SIZE)]
     highest_fitness = 0
@@ -199,8 +237,17 @@ if __name__ == "__main__":
     best_fitnesses = []
     avg_fitnesses = []
 
+    evals = {}  # key: shin_length, value: (individual, fitness)
+
     for generation in range(GENERATIONS):
         fitnesses = [evaluate(ind) for ind in population]
+
+        for i, individual in enumerate(population):
+            shin_length = individual[25]
+            fitness = fitnesses[i]
+            if shin_length not in evals or fitness > evals[shin_length][1]:
+                evals[shin_length] = (individual, fitness)
+
         sorted_indices = np.argsort(fitnesses)[::-1]
         best_idx = sorted_indices[0]
         best = population[best_idx]
@@ -212,32 +259,29 @@ if __name__ == "__main__":
         avg_fitnesses.append(avg_fitness)
 
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
-        best_thigh_length = best[24]
-        best_shin_length = best[25]
-        best_body_size = best[26]
-        print(f"Best thigh length: {best_thigh_length:.2f}, Best shin length: {best_shin_length:.2f}, Best body size: {best_body_size:.2f}")
 
         if best_fitness > highest_fitness:
-            if best_fitness - highest_fitness > 10 or generation == 0:
-                print("Found a significantly better individual!")
-                evaluate(best, seconds=10, dt=0.05, play_blind=False)
-
             highest_fitness = best_fitness
             best_individual = best
-
 
         elites = [population[i] for i in sorted_indices[:TOP_K]]
         population = [mutate(random.choice(elites)) for _ in range(POP_SIZE)]
 
-        # add crossover between elites
+        # Add crossover
         for _ in range(POP_SIZE // 2):
             parent1, parent2 = random.sample(elites, 2)
             child = crossover_uniform(parent1, parent2)
             population.append(child)
 
+    # Evaluate best overall individual
     print(f"Showing best individual with fitness {highest_fitness:.2f}")
     evaluate(best_individual, seconds=30, dt=0.05, play_blind=False)
 
+    # Plot per-bin best fitnesses (evaluated with play_blind=False)
+    binned = get_best_bin_performances(evals, num_intervals=NUM_INTERVALS)
+    plot_histogram_shin_lengths(binned, interval_size=(SHIN_RANGE[1] - SHIN_RANGE[0]) / NUM_INTERVALS)
+
+    # Plot fitness over generations
     plt.figure(figsize=(10, 6))
     plt.plot(best_fitnesses, label="Best Fitness")
     plt.plot(avg_fitnesses, label="Average Fitness", linestyle="--")
@@ -248,4 +292,3 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-
