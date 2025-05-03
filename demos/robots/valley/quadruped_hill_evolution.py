@@ -4,35 +4,48 @@ import pyrosim
 import random
 import matplotlib.pyplot as plt
 
-def get_square_coordinates_xy(level, box_size, offset):
-    level += offset
-    center_coordinates = []
-    for i in range(-level, level + 1):
-        center_coordinates.append((i*box_size, level*box_size))
-        center_coordinates.append((i*box_size, -level*box_size))
-    for i in range(-level + 1, level):
-        center_coordinates.append((level*box_size, i*box_size))
-        center_coordinates.append((-level*box_size, i*box_size))
-    return center_coordinates
+BOX_MASS = 1000
 
-def add_square_valley(sim, step_height=0.2, step_size=0.5, levels=3, offset = 1):
+def add_blocks(sim, level, box_size, step_height):
+    height = level * step_height
+
+    dist = level*box_size
+
+    long_block_length = (2*level + 1)*box_size
+    short_block_length = (2*level - 1)*box_size
+
+    box = sim.send_box(
+        x=0, y=dist, z=height/2,
+        length=box_size, width=long_block_length, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=0, y=-dist, z=height/2,
+        length=box_size, width=long_block_length, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=dist, y=0, z=height/2,
+        length=short_block_length, width=box_size, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=-dist, y=0, z=height/2,
+        length=short_block_length, width=box_size, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+
+def add_square_valley(sim, levels, box_size, step_height):
     for level in range(1, levels + 1):
-        height = (level) * step_height
-        square_coordinates_xy = get_square_coordinates_xy(level, step_size, offset)
-
-        for coordinate in square_coordinates_xy:
-            x, y = coordinate
-            box = sim.send_box(
-                x=x, y=y, z=height/2,
-                length=step_size, width=step_size, height=height,
-                mass=30.0
-            )
-
-            # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+        add_blocks(sim, level, box_size, step_height)
 
 # Hyperparameters
 POP_SIZE = 30
-GENERATIONS = 100
+GENERATIONS = 20
 MUTATION_RATE = 0.1
 
 # Parameter ranges
@@ -74,7 +87,7 @@ def crossover_uniform(parent1, parent2):
 
 
 def send_to_simulator(sim, individual, eval_time):
-    add_square_valley(sim, 0.2, 0.5, 1, 1)
+    add_square_valley(sim, 2, 0.8, 0.15)
 
     main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
                              length=HEIGHT, width=HEIGHT,

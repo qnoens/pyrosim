@@ -8,7 +8,7 @@ def add_random_block_grid(sim,
                           grid_size=(5, 5),
                           spacing=1,
                           size = 0.5,
-                          height = 0.2):
+                          height = 0.1):
     """
     Plaatst willekeurige blokken in een grid-patroon.
 

@@ -6,49 +6,47 @@ import pyrosim
 HEIGHT = 0.3
 EPS = 0.05
 np.random.seed(0)
+BOX_MASS = 1000
 
-def add_blocks(level, box_size):
-    height = level * box_size
+def add_blocks(sim, level, box_size, step_height):
+    height = level * step_height
 
+    dist = level*box_size
 
     long_block_length = (2*level + 1)*box_size
     short_block_length = (2*level - 1)*box_size
 
     box = sim.send_box(
-        x=0, y=(level+1)*box_size, z=height/2,
+        x=0, y=dist, z=height/2,
         length=box_size, width=long_block_length, height=height,
-        mass=30.0
+        mass=BOX_MASS
     )
+    sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=0, y=-dist, z=height/2,
+        length=box_size, width=long_block_length, height=height,
+        mass=BOX_MASS
+    )
+    sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=dist, y=0, z=height/2,
+        length=short_block_length, width=box_size, height=height,
+        mass=BOX_MASS
+    )
+    sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=-dist, y=0, z=height/2,
+        length=short_block_length, width=box_size, height=height,
+        mass=BOX_MASS
+    )
+    sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
 
-    # (2*level + 1)*box_size
-
-    # for i in range(-level, level + 1):
-    #     center_coordinates.append((i*box_size, level*box_size))
-    #     center_coordinates.append((i*box_size, -level*box_size))
-    # for i in range(-level + 1, level):
-    #     center_coordinates.append((level*box_size, i*box_size))
-    #     center_coordinates.append((-level*box_size, i*box_size))
-    # return center_coordinates
-
-def add_square_valley(sim, step_height=0.2, step_size=0.5, levels=3, offset = 1):
+def add_square_valley(sim, levels, box_size, step_height):
     for level in range(1, levels + 1):
-        add_blocks(level, step_size)
-
-        # height = (level) * step_height
-        # square_coordinates_xy = get_square_coordinates_xy(level, step_size, offset)
-
-        # for coordinate in square_coordinates_xy:
-        #     x, y = coordinate
-        #     box = sim.send_box(
-        #         x=x, y=y, z=height/2,
-        #         length=step_size, width=step_size, height=height,
-        #         mass=30.0
-        #     )
-
-            # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+        add_blocks(sim, level, box_size, step_height)
 
 def send_to_simulator(sim, weight_matrix):
-    add_square_valley(sim, 0.2, 0.5, 1, 1)
+    add_square_valley(sim, 2, 1, 0.2)
 
     main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
                              length=HEIGHT, width=HEIGHT,
@@ -130,12 +128,6 @@ def send_to_simulator(sim, weight_matrix):
               'feet': foot_sensors,
               'sensor_neurons': sensor_neurons,
               'motor_neurons': motor_neurons}
-
-    env_box = sim.send_box(x=2, y=-2, z=HEIGHT/2.0,
-                           length=HEIGHT,
-                           width=HEIGHT,
-                           height=HEIGHT,
-                           mass=3.)
 
     # send the box towards the origin with specified force
     # proportional to its mass
