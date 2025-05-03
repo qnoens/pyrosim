@@ -39,7 +39,7 @@ def add_random_block_grid(sim,
 
 # Hyperparameters
 POP_SIZE = 30
-GENERATIONS = 20
+GENERATIONS = 50
 MUTATION_RATE = 0.1
 
 # Parameter ranges
@@ -50,25 +50,45 @@ AMP_RANGE = (0.2, 1.0)
 # Random parameters
 HEIGHT = 0.3
 EPS = 0.05
-#np.random.seed(0)
+np.random.seed(0)
+
+MAX_THIGH_LENGTH = 0.5
+MAX_SHIN_LENGTH = 1.0
+MAX_BODY_LENGTH = 0.4
+MIN_LENGTH = 0.1
 
 def random_individual():
-    return np.array([
+    motor_params = [
         np.random.uniform(*PHASE_RANGE),
         np.random.uniform(*FREQ_RANGE),
         np.random.uniform(*AMP_RANGE)
-    ] * 8)  # 8 joints
+    ] * 8  # 8 joints
+
+    thigh_length = np.random.uniform(MIN_LENGTH, MAX_THIGH_LENGTH)
+    shin_length = np.random.uniform(MIN_LENGTH, MAX_SHIN_LENGTH)
+    body_size = np.random.uniform(MIN_LENGTH, MAX_BODY_LENGTH)  # For central box size
+
+    return np.array(motor_params + [thigh_length, shin_length, body_size])
+
+
 
 def mutate(individual):
     mutant = individual.copy()
     for i in range(len(mutant)):
         if np.random.rand() < MUTATION_RATE:
-            if i % 3 == 0:
-                mutant[i] = np.random.uniform(*PHASE_RANGE)
-            elif i % 3 == 1:
-                mutant[i] = np.random.uniform(*FREQ_RANGE)
-            else:
-                mutant[i] = np.random.uniform(*AMP_RANGE)
+            if i < 24:  # motor control: 8 joints * 3 params
+                if i % 3 == 0:
+                    mutant[i] = np.random.uniform(*PHASE_RANGE)
+                elif i % 3 == 1:
+                    mutant[i] = np.random.uniform(*FREQ_RANGE)
+                else:
+                    mutant[i] = np.random.uniform(*AMP_RANGE)
+            elif i == 24:  # thigh length
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_THIGH_LENGTH)
+            elif i == 25:  # shin length
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_SHIN_LENGTH)
+            elif i == 26:  # body size
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_BODY_LENGTH)
     return mutant
 
 def cross_over(parent1, parent2):
@@ -82,7 +102,12 @@ def crossover_uniform(parent1, parent2):
 
 def send_to_simulator(sim, individual, eval_time):
     add_random_block_grid(sim)
-    main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
+
+    motor_params = individual[:24]
+    thigh_length = individual[24]
+    shin_length = individual[25]
+    body_size = individual[26]
+    main_body = sim.send_box(x=0, y=0, z=shin_length+EPS,
                              length=HEIGHT, width=HEIGHT,
                              height=EPS*2.0, mass=1)
     pos_sensor_id = sim.send_position_sensor(body_id=main_body)
@@ -100,12 +125,12 @@ def send_to_simulator(sim, individual, eval_time):
         x_pos = math.cos(theta) * HEIGHT
         y_pos = math.sin(theta) * HEIGHT
 
-        thighs[i] = sim.send_cylinder(x=x_pos, y=y_pos, z=HEIGHT+EPS,
+        thighs[i] = sim.send_cylinder(x=x_pos, y=y_pos, z=shin_length+EPS,
                                       r1=x_pos, r2=y_pos, r3=0,
                                       length=HEIGHT, radius=EPS, capped=True)
 
         hips[i] = sim.send_hinge_joint(main_body, thighs[i],
-                                       x=x_pos/2.0, y=y_pos/2.0, z=HEIGHT+EPS,
+                                       x=x_pos/2.0, y=y_pos/2.0, z=shin_length+EPS,
                                        n1=-y_pos, n2=x_pos, n3=0,
                                        lo=-math.pi/4.0, hi=math.pi/4.0,
                                        speed=1.0)
@@ -113,20 +138,19 @@ def send_to_simulator(sim, individual, eval_time):
         x_pos2 = math.cos(theta)*1.5*HEIGHT
         y_pos2 = math.sin(theta)*1.5*HEIGHT
 
-        shins[i] = sim.send_cylinder(x=x_pos2, y=y_pos2, z=(HEIGHT+EPS)/2.0,
+        shins[i] = sim.send_cylinder(x=x_pos2, y=y_pos2, z=(shin_length+EPS)/2.0,
                                      r1=0, r2=0, r3=1,
-                                     length=HEIGHT, radius=EPS,
+                                     length=shin_length, radius=EPS,
                                      mass=1., capped=True)
 
         knees[i] = sim.send_hinge_joint(thighs[i], shins[i],
-                                        x=x_pos2, y=y_pos2, z=HEIGHT+EPS,
+                                        x=x_pos2, y=y_pos2, z=shin_length+EPS,
                                         n1=-y_pos, n2=x_pos, n3=0,
                                         lo=-math.pi/4.0, hi=math.pi/4.0)
 
         # Voeg motorneuronen toe voor heup en knie
         motor_neurons.append(hips[i])
         motor_neurons.append(knees[i])
-
     # Add sine wave oscillattions to motor neurons
     for idx, joint in enumerate(motor_neurons):
         phase = individual[idx * 3]
@@ -144,12 +168,13 @@ def send_to_simulator(sim, individual, eval_time):
 
     return main_body, pos_sensor_id
 
+
 def evaluate(individual, seconds = 30.0, dt = 0.05, play_blind = True):
     eval_time = int(seconds / dt)
     gravity = -1.0
 
     sim = pyrosim.Simulator(eval_time=eval_time, debug=False,
-                            play_blind=play_blind, gravity=gravity, dt=dt)
+                            play_blind=play_blind, gravity=gravity, dt=dt, capture=False)
 
     main_body, pos_sensor_id = send_to_simulator(sim, individual, eval_time)
     sim.start()
@@ -187,6 +212,10 @@ if __name__ == "__main__":
         avg_fitnesses.append(avg_fitness)
 
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
+        best_thigh_length = best[24]
+        best_shin_length = best[25]
+        best_body_size = best[26]
+        print(f"Best thigh length: {best_thigh_length:.2f}, Best shin length: {best_shin_length:.2f}, Best body size: {best_body_size:.2f}")
 
         if best_fitness > highest_fitness:
             if best_fitness - highest_fitness > 10 or generation == 0:

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 
 
 # Hyperparameters
-POP_SIZE = 30
-GENERATIONS = 100
+POP_SIZE = 50
+GENERATIONS = 50
 MUTATION_RATE = 0.1
 
 # Parameter ranges
@@ -19,25 +19,44 @@ AMP_RANGE = (0.2, 1.0)
 # Random parameters
 HEIGHT = 0.3
 EPS = 0.05
-#np.random.seed(0)
+np.random.seed(0)
+
+MAX_THIGH_LENGTH = 0.5
+MAX_SHIN_LENGTH = 0.5
+MAX_BODY_LENGTH = 0.4
+MIN_LENGTH = 0.1
 
 def random_individual():
-    return np.array([
+    motor_params = [
         np.random.uniform(*PHASE_RANGE),
         np.random.uniform(*FREQ_RANGE),
         np.random.uniform(*AMP_RANGE)
-    ] * 8)  # 8 joints
+    ] * 8  # 8 joints
+
+    thigh_length = np.random.uniform(MIN_LENGTH, MAX_THIGH_LENGTH)
+    shin_length = np.random.uniform(MIN_LENGTH, MAX_SHIN_LENGTH)
+    body_size = np.random.uniform(MIN_LENGTH, MAX_BODY_LENGTH)  # For central box size
+
+    return np.array(motor_params + [thigh_length, shin_length, body_size])
+
 
 def mutate(individual):
     mutant = individual.copy()
     for i in range(len(mutant)):
         if np.random.rand() < MUTATION_RATE:
-            if i % 3 == 0:
-                mutant[i] = np.random.uniform(*PHASE_RANGE)
-            elif i % 3 == 1:
-                mutant[i] = np.random.uniform(*FREQ_RANGE)
-            else:
-                mutant[i] = np.random.uniform(*AMP_RANGE)
+            if i < 24:  # motor control: 8 joints * 3 params
+                if i % 3 == 0:
+                    mutant[i] = np.random.uniform(*PHASE_RANGE)
+                elif i % 3 == 1:
+                    mutant[i] = np.random.uniform(*FREQ_RANGE)
+                else:
+                    mutant[i] = np.random.uniform(*AMP_RANGE)
+            elif i == 24:  # thigh length
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_THIGH_LENGTH)
+            elif i == 25:  # shin length
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_SHIN_LENGTH)
+            elif i == 26:  # body size
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_BODY_LENGTH)
     return mutant
 
 def cross_over(parent1, parent2):
@@ -155,6 +174,10 @@ if __name__ == "__main__":
         avg_fitnesses.append(avg_fitness)
 
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
+        best_thigh_length = best[24]
+        best_shin_length = best[25]
+        best_body_size = best[26]
+        print(f"Best thigh length: {best_thigh_length:.2f}, Best shin length: {best_shin_length:.2f}, Best body size: {best_body_size:.2f}")
 
         if best_fitness > highest_fitness:
             if best_fitness - highest_fitness > 10 or generation == 0:

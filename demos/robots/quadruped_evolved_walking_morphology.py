@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 
 # Hyperparameters
-POP_SIZE = 30
-GENERATIONS = 20
+POP_SIZE = 100
+GENERATIONS = 50
 MUTATION_RATE = 0.1
 
 # Parameter ranges
@@ -18,7 +18,12 @@ AMP_RANGE = (0.2, 1.0)
 # Random parameters
 HEIGHT = 0.3
 EPS = 0.05
-#np.random.seed(0)
+np.random.seed(0)
+
+MAX_THIGH_LENGTH = 0.5
+MAX_SHIN_LENGTH = 0.5
+MAX_BODY_LENGTH = 0.4
+MIN_LENGTH = 0.1
 
 def random_individual():
     motor_params = [
@@ -27,9 +32,9 @@ def random_individual():
         np.random.uniform(*AMP_RANGE)
     ] * 8  # 8 joints
 
-    thigh_length = np.random.uniform(0.1, 0.5)
-    shin_length = np.random.uniform(0.1, 0.5)
-    body_size = np.random.uniform(0.1, 0.4)  # For central box size
+    thigh_length = np.random.uniform(MIN_LENGTH, MAX_THIGH_LENGTH)
+    shin_length = np.random.uniform(MIN_LENGTH, MAX_SHIN_LENGTH)
+    body_size = np.random.uniform(MIN_LENGTH, MAX_BODY_LENGTH)  # For central box size
 
     return np.array(motor_params + [thigh_length, shin_length, body_size])
 
@@ -47,11 +52,11 @@ def mutate(individual):
                 else:
                     mutant[i] = np.random.uniform(*AMP_RANGE)
             elif i == 24:  # thigh length
-                mutant[i] = np.random.uniform(0.1, 0.5)
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_THIGH_LENGTH)
             elif i == 25:  # shin length
-                mutant[i] = np.random.uniform(0.1, 0.5)
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_SHIN_LENGTH)
             elif i == 26:  # body size
-                mutant[i] = np.random.uniform(0.1, 0.4)
+                mutant[i] = np.random.uniform(MIN_LENGTH, MAX_BODY_LENGTH)
     return mutant
 
 
@@ -172,6 +177,10 @@ if __name__ == "__main__":
         avg_fitnesses.append(avg_fitness)
 
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
+        best_thigh_length = best[24]
+        best_shin_length = best[25]
+        best_body_size = best[26]
+        print(f"Best thigh length: {best_thigh_length:.2f}, Best shin length: {best_shin_length:.2f}, Best body size: {best_body_size:.2f}")
 
         if best_fitness > highest_fitness:
             if best_fitness - highest_fitness > 10 or generation == 0:
