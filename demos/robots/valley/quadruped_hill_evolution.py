@@ -183,7 +183,7 @@ if __name__ == "__main__":
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
 
         if best_fitness > highest_fitness:
-            if best_fitness - highest_fitness > 1 or generation == 0:
+            if best_fitness - highest_fitness > 0.2 or generation == 0:
                 print("Found a significantly better individual!")
                 evaluate(best, seconds=10, dt=0.05, play_blind=False)
 

@@ -2,39 +2,47 @@ import math
 import numpy as np
 import math
 import pyrosim
+import random
+
+def add_random_block_grid(sim,
+                          grid_size=(5, 5),
+                          spacing=1,
+                          size = 0.5,
+                          height = 0.2):
+    """
+    Plaatst willekeurige blokken in een grid-patroon.
+
+    Parameters:
+        sim: pyrosim.Simulator
+        grid_size: (rows, cols) van het grid
+        spacing: afstand tussen blokken in het grid
+        size_range: (min, max) breedte/lengte van blokken
+        height_range: (min, max) hoogte van blokken
+        origin: (x0, y0) positie van linkerbovenhoek van het grid
+    """
+    rows, cols = grid_size
+    x0, y0 = -(grid_size[0]-1)/2, -(grid_size[1]-1)/2
+
+    for i in range(rows):
+        for j in range(cols):
+
+            x = x0 + j * spacing
+            y = y0 + i * spacing
+            z = height / 2.0  # zodat het blok op de grond staat
+
+            if (x == 0  and y == 0):
+                continue
+
+            sim.send_box(x=x, y=y, z=z,
+                         length=size, width=size, height=height,
+                         mass=50.0)  # statisch blok
 
 HEIGHT = 0.3
 EPS = 0.05
 np.random.seed(0)
 
-def get_square_coordinates_xy(level, box_size, offset):
-    level += offset
-    center_coordinates = []
-    for i in range(-level, level + 1):
-        center_coordinates.append((i*box_size, level*box_size))
-        center_coordinates.append((i*box_size, -level*box_size))
-    for i in range(-level + 1, level):
-        center_coordinates.append((level*box_size, i*box_size))
-        center_coordinates.append((-level*box_size, i*box_size))
-    return center_coordinates
-
-def add_square_valley(sim, step_height=0.2, step_size=0.5, levels=3, offset = 1):
-    for level in range(1, levels + 1):
-        height = (level) * step_height
-        square_coordinates_xy = get_square_coordinates_xy(level, step_size, offset)
-
-        for coordinate in square_coordinates_xy:
-            x, y = coordinate
-            box = sim.send_box(
-                x=x, y=y, z=height/2,
-                length=step_size, width=step_size, height=height,
-                mass=30.0
-            )
-
-            # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
-
 def send_to_simulator(sim, weight_matrix):
-    add_square_valley(sim, 0.2, 0.5, 1, 1)
+    add_random_block_grid(sim)
 
     main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
                              length=HEIGHT, width=HEIGHT,
@@ -117,11 +125,6 @@ def send_to_simulator(sim, weight_matrix):
               'sensor_neurons': sensor_neurons,
               'motor_neurons': motor_neurons}
 
-    env_box = sim.send_box(x=2, y=-2, z=HEIGHT/2.0,
-                           length=HEIGHT,
-                           width=HEIGHT,
-                           height=HEIGHT,
-                           mass=3.)
 
     # send the box towards the origin with specified force
     # proportional to its mass
@@ -135,13 +138,13 @@ def send_to_simulator(sim, weight_matrix):
 
 if __name__ == "__main__":
 
-    seconds = 30.0
+    seconds = 10.0
     dt = 0.05
     eval_time = int(seconds/dt)
     print(eval_time)
     gravity = -1.0
 
-    sim = pyrosim.Simulator(xyz=[2,2,2], hpr = [225,-30,0], eval_time=eval_time, debug=False,
+    sim = pyrosim.Simulator(eval_time=eval_time, debug=True,
                                play_paused=False,
                                gravity=gravity,
                                play_blind=False,

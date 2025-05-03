@@ -4,42 +4,11 @@ import pyrosim
 import random
 import matplotlib.pyplot as plt
 
-def add_random_block_grid(sim,
-                          grid_size=(5, 5),
-                          spacing=1,
-                          size = 0.5,
-                          height = 0.2):
-    """
-    Plaatst willekeurige blokken in een grid-patroon.
 
-    Parameters:
-        sim: pyrosim.Simulator
-        grid_size: (rows, cols) van het grid
-        spacing: afstand tussen blokken in het grid
-        size_range: (min, max) breedte/lengte van blokken
-        height_range: (min, max) hoogte van blokken
-        origin: (x0, y0) positie van linkerbovenhoek van het grid
-    """
-    rows, cols = grid_size
-    x0, y0 = -(grid_size[0]-1)/2, -(grid_size[1]-1)/2
-
-    for i in range(rows):
-        for j in range(cols):
-
-            x = x0 + j * spacing
-            y = y0 + i * spacing
-            z = height / 2.0  # zodat het blok op de grond staat
-
-            if (x == 0  and y == 0):
-                continue
-
-            sim.send_box(x=x, y=y, z=z,
-                         length=size, width=size, height=height,
-                         mass=50.0)  # statisch blok
 
 # Hyperparameters
 POP_SIZE = 30
-GENERATIONS = 20
+GENERATIONS = 100
 MUTATION_RATE = 0.1
 
 # Parameter ranges
@@ -81,7 +50,6 @@ def crossover_uniform(parent1, parent2):
 
 
 def send_to_simulator(sim, individual, eval_time):
-    add_random_block_grid(sim)
     main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
                              length=HEIGHT, width=HEIGHT,
                              height=EPS*2.0, mass=1)
