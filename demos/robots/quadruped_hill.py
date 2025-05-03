@@ -20,21 +20,21 @@ def get_square_coordinates_xy(level, box_size, offset):
 
 def add_square_valley(sim, step_height=0.2, step_size=0.5, levels=3, offset = 1):
     for level in range(1, levels + 1):
-        height = (level-1) * step_height + step_height/2
+        height = (level) * step_height
         square_coordinates_xy = get_square_coordinates_xy(level, step_size, offset)
 
         for coordinate in square_coordinates_xy:
             x, y = coordinate
             box = sim.send_box(
-                x=x, y=y, z=height,
-                length=step_size, width=step_size, height=step_height,
-                mass=5.0
+                x=x, y=y, z=height/2,
+                length=step_size, width=step_size, height=height,
+                mass=30.0
             )
 
-            sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+            # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
 
 def send_to_simulator(sim, weight_matrix):
-    add_square_valley(sim, 0.2, 0.5, 5, 1)
+    add_square_valley(sim, 0.2, 0.5, 1, 1)
 
     main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
                              length=HEIGHT, width=HEIGHT,
