@@ -38,9 +38,12 @@ def add_random_block_grid(sim,
                          mass=50.0)  # statisch blok
 
 # Hyperparameters
-POP_SIZE = 50
-GENERATIONS = 50
+POP_SIZE = 30
+GENERATIONS = 30
 MUTATION_RATE = 0.1
+
+TOP_K = 5  # number of top individuals to retain and mutate from
+NUM_INTERVALS = 6  # number of intervals for shin length histogram
 
 # Parameter ranges
 PHASE_RANGE = (0, 2 * math.pi)
@@ -52,8 +55,8 @@ HEIGHT = 0.3
 EPS = 0.05
 np.random.seed(0)
 
-MAX_THIGH_LENGTH = 0.5
-MAX_SHIN_LENGTH = 1.0
+MAX_THIGH_LENGTH = 0.7
+MAX_SHIN_LENGTH = 0.7
 MAX_BODY_LENGTH = 0.4
 MIN_LENGTH = 0.1
 SHIN_RANGE = (MIN_LENGTH, MAX_SHIN_LENGTH)
@@ -225,9 +228,6 @@ def plot_histogram_shin_lengths(binned_values, interval_size=0.1):
     plt.tight_layout()
     plt.show()
 
-TOP_K = 5  # number of top individuals to retain and mutate from
-NUM_INTERVALS = 4  # number of intervals for shin length histogram
-
 # --- Main loop ---
 if __name__ == "__main__":
     population = [random_individual() for _ in range(POP_SIZE)]
@@ -259,6 +259,7 @@ if __name__ == "__main__":
         avg_fitnesses.append(avg_fitness)
 
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
+        print(f"Best shin length: {best[25]:.2f}")
 
         if best_fitness > highest_fitness:
             highest_fitness = best_fitness
