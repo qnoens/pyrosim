@@ -4,46 +4,63 @@ import pyrosim
 import random
 import matplotlib.pyplot as plt
 
-def get_square_coordinates_xy(level, box_size, offset):
-    level += offset
-    center_coordinates = []
-    for i in range(-level, level + 1):
-        center_coordinates.append((i*box_size, level*box_size))
-        center_coordinates.append((i*box_size, -level*box_size))
-    for i in range(-level + 1, level):
-        center_coordinates.append((level*box_size, i*box_size))
-        center_coordinates.append((-level*box_size, i*box_size))
-    return center_coordinates
+# PARAMETERS
+BOX_MASS = 1000
+STEP_HEIGHT = 0.15
+BOX_SIZE = 1.0
+LEVELS = 3
 
-def add_square_valley(sim, step_height=0.2, step_size=0.5, levels=3, offset = 1):
-    for level in range(1, levels + 1):
-        height = (level-1) * step_height + step_height/2
-        square_coordinates_xy = get_square_coordinates_xy(level, step_size, offset)
-
-        for coordinate in square_coordinates_xy:
-            x, y = coordinate
-            box = sim.send_box(
-                x=x, y=y, z=height,
-                length=step_size, width=step_size, height=step_height,
-                mass=5.0
-            )
-
-            sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
-
-# Hyperparameters
 POP_SIZE = 30
-GENERATIONS = 20
+GENERATIONS = 5
 MUTATION_RATE = 0.1
 
-# Parameter ranges
 PHASE_RANGE = (0, 2 * math.pi)
 FREQ_RANGE = (0.5, 2.0)
 AMP_RANGE = (0.2, 1.0)
 
-# Random parameters
+THIGH_RANGE = (0.1, 0.5)
+SHIN_RANGE = (0.1, 0.5)
+BODY_SIZE_RANGE = (0.1, 0.4)
+
 HEIGHT = 0.3
 EPS = 0.05
-#np.random.seed(0)
+
+def add_blocks(sim, level, box_size, step_height):
+    height = level * step_height
+
+    dist = level*box_size
+
+    long_block_length = (2*level + 1)*box_size
+    short_block_length = (2*level - 1)*box_size
+
+    box = sim.send_box(
+        x=0, y=dist, z=height/2,
+        length=box_size, width=long_block_length, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=0, y=-dist, z=height/2,
+        length=box_size, width=long_block_length, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=dist, y=0, z=height/2,
+        length=short_block_length, width=box_size, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+    box = sim.send_box(
+        x=-dist, y=0, z=height/2,
+        length=short_block_length, width=box_size, height=height,
+        mass=BOX_MASS
+    )
+    # sim.send_fixed_joint(box, pyrosim.Simulator.WORLD)
+
+def add_square_valley(sim, levels, box_size, step_height):
+    for level in range(1, levels + 1):
+        add_blocks(sim, level, box_size, step_height)
 
 def random_individual():
     motor_params = [
@@ -52,9 +69,9 @@ def random_individual():
         np.random.uniform(*AMP_RANGE)
     ] * 8  # 8 joints
 
-    thigh_length = np.random.uniform(0.1, 0.5)
-    shin_length = np.random.uniform(0.1, 0.5)
-    body_size = np.random.uniform(0.1, 0.4)  # For central box size
+    thigh_length = np.random.uniform(*THIGH_RANGE)
+    shin_length = np.random.uniform(*SHIN_RANGE)
+    body_size = np.random.uniform(*BODY_SIZE_RANGE)  # For central box size
 
     return np.array(motor_params + [thigh_length, shin_length, body_size])
 
@@ -90,7 +107,7 @@ def crossover_uniform(parent1, parent2):
 
 
 def send_to_simulator(sim, individual, eval_time):
-    add_square_valley(sim, 0.2, 0.5, 1, 1)
+    add_square_valley(sim, LEVELS, BOX_SIZE, STEP_HEIGHT)
 
     motor_params = individual[:24]
     thigh_length = individual[24]
@@ -176,6 +193,34 @@ def evaluate(individual, seconds = 30.0, dt = 0.05, play_blind = True):
     return final_x**2 + final_y**2  # fitness is de afstand van de oorsprong
 
 
+def plot_histogram_shin_lengths(evals, num_intervals = 4):
+    binned_max = {}
+
+    interval_start = SHIN_RANGE[0]
+    interval_size = (SHIN_RANGE[1] - SHIN_RANGE[0]) / num_intervals
+
+    for key, value in evals.items():
+        bin_index = int((key - interval_start) // (interval_size))
+        if 0 <= bin_index < num_intervals:
+            bin_start = interval_start + bin_index * interval_size
+            if bin_start in binned_max:
+                binned_max[bin_start] = max(binned_max[bin_start], value)
+            else:
+                binned_max[bin_start] = value
+
+    bins = [f"{round(k, 1)}–{round(k + 0.1, 1)}" for k in binned_max.keys()]
+    values = list(binned_max.values())
+
+    plt.figure(figsize=(8, 5))
+    plt.bar(bins, values, width=0.5, color='skyblue', edgecolor='black')
+    plt.xlabel('Interval')
+    plt.ylabel('Max Value')
+    plt.title('Histogram of Max Values per Interval')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+
 TOP_K = 5  # number of top individuals to retain and mutate from
 
 if __name__ == "__main__":
@@ -186,8 +231,18 @@ if __name__ == "__main__":
     best_fitnesses = []
     avg_fitnesses = []
 
+    evals = {}
+
     for generation in range(GENERATIONS):
         fitnesses = [evaluate(ind) for ind in population]
+
+        for i, individual in enumerate(population):
+            shin_length = individual[25]
+            if shin_length not in evals:
+                evals[shin_length] = fitnesses[i]
+            else:
+                evals[shin_length] = max(evals[shin_length], fitnesses[i])
+        
         sorted_indices = np.argsort(fitnesses)[::-1]
         best_idx = sorted_indices[0]
         best = population[best_idx]
@@ -201,9 +256,9 @@ if __name__ == "__main__":
         print(f"Gen {generation}: Best fitness = {best_fitness:.2f}, Avg fitness = {avg_fitness:.2f}")
 
         if best_fitness > highest_fitness:
-            if best_fitness - highest_fitness > 10 or generation == 0:
-                print("Found a significantly better individual!")
-                evaluate(best, seconds=10, dt=0.05, play_blind=False)
+            # if best_fitness - highest_fitness > 10 or generation == 0:
+            #     print("Found a significantly better individual!")
+            #     evaluate(best, seconds=10, dt=0.05, play_blind=False)
 
             highest_fitness = best_fitness
             best_individual = best
@@ -221,6 +276,9 @@ if __name__ == "__main__":
     print(f"Showing best individual with fitness {highest_fitness:.2f}")
     evaluate(best_individual, seconds=30, dt=0.05, play_blind=False)
 
+    plot_histogram_shin_lengths(evals)
+
+def plot_fitness_curve(best_fitnesses, avg_fitnesses):
     plt.figure(figsize=(10, 6))
     plt.plot(best_fitnesses, label="Best Fitness")
     plt.plot(avg_fitnesses, label="Average Fitness", linestyle="--")
