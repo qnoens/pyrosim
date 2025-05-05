@@ -45,8 +45,8 @@ def add_square_valley(sim, levels, box_size, step_height):
     for level in range(1, levels + 1):
         add_blocks(sim, level, box_size, step_height)
 
-def send_to_simulator(sim, weight_matrix):
-    add_square_valley(sim, 2, 1, 0.2)
+def send_to_simulator(sim, weight_matrix = None):
+    add_square_valley(sim, 3, 1, 0.2)
 
     main_body = sim.send_box(x=0, y=0, z=HEIGHT+EPS,
                              length=HEIGHT, width=HEIGHT,
@@ -102,32 +102,32 @@ def send_to_simulator(sim, weight_matrix):
         foot_sensors[i] = sim.send_touch_sensor(shins[i])
         sensor_neurons[i] = sim.send_sensor_neuron(foot_sensors[i])
 
-    count = 0
+    # count = 0
     # developing synapses linearly change from the start value to the
     # end value over the course of start time to end time
     # Here we connect each sensor to each motor, pulling weights from
     # the weight matrix
-    for source_id in sensor_neurons:
-        for target_id in motor_neurons:
-            count += 1
-            start_weight = weight_matrix[source_id, target_id, 0]
-            end_weight = weight_matrix[source_id, target_id, 1]
-            start_time = weight_matrix[source_id, target_id, 2]
-            end_time = weight_matrix[source_id, target_id, 3]
-            sim.send_developing_synapse(source_id, target_id,
-                                        start_weight=start_weight,
-                                        end_weight=end_weight,
-                                        start_time=start_time, 
-                                        end_time=end_time)
+    # for source_id in sensor_neurons:
+    #     for target_id in motor_neurons:
+    #         count += 1
+    #         start_weight = weight_matrix[source_id, target_id, 0]
+    #         end_weight = weight_matrix[source_id, target_id, 1]
+    #         start_time = weight_matrix[source_id, target_id, 2]
+    #         end_time = weight_matrix[source_id, target_id, 3]
+    #         sim.send_developing_synapse(source_id, target_id,
+    #                                     start_weight=start_weight,
+    #                                     end_weight=end_weight,
+    #                                     start_time=start_time, 
+    #                                     end_time=end_time)
 
     # layouts are useful for other things not relevant to this example
-    layout = {'thighs': thighs,
-              'shins': shins,
-              'hips': hips,
-              'knees': knees,
-              'feet': foot_sensors,
-              'sensor_neurons': sensor_neurons,
-              'motor_neurons': motor_neurons}
+    # layout = {'thighs': thighs,
+    #           'shins': shins,
+    #           'hips': hips,
+    #           'knees': knees,
+    #           'feet': foot_sensors,
+    #           'sensor_neurons': sensor_neurons,
+    #           'motor_neurons': motor_neurons}
 
     # send the box towards the origin with specified force
     # proportional to its mass
@@ -137,21 +137,21 @@ def send_to_simulator(sim, weight_matrix):
 
     sim.create_collision_matrix('all')
 
-    return layout
+    # return layout
 
 if __name__ == "__main__":
 
-    seconds = 30.0
+    seconds = 120.0
     dt = 0.05
     eval_time = int(seconds/dt)
     print(eval_time)
     gravity = -1.0
 
-    sim = pyrosim.Simulator(xyz=[2,2,2], hpr = [225,-30,0], eval_time=eval_time, debug=False,
+    sim = pyrosim.Simulator(xyz=[7,0,4], hpr = [180,-30,0], eval_time=eval_time, debug=False,
                                play_paused=False,
                                gravity=gravity,
                                play_blind=False,
-                               use_textures=True,
+                               use_textures=False,
                                capture=False,
                                dt=dt)
     num_sensors = 5
@@ -160,11 +160,11 @@ if __name__ == "__main__":
     # our weight matrix specifies the values for the 
     # starting and ending weights as well as the starting and
     # ending times for the synapses
-    weight_matrix = np.random.rand(num_sensors+num_motors,
-                                   num_sensors+num_motors, 4)
-    weight_matrix[:, :, 0:1] = weight_matrix[:, :, 0:1]*2.-1.
+    # weight_matrix = np.random.rand(num_sensors+num_motors,
+    #                                num_sensors+num_motors, 4)
+    # weight_matrix[:, :, 0:1] = weight_matrix[:, :, 0:1]*2.-1.
 
-    layout = send_to_simulator(sim, weight_matrix=weight_matrix)
+    send_to_simulator(sim)
     sim.start()
 
     sim.wait_to_finish()
